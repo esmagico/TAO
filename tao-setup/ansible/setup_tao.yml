@@ -1,0 +1,122 @@
+---
+- name: Clone Repository, Set Ownership, and Deploy .env
+  hosts: tao_servers
+  become: yes
+
+  vars:
+    repo_owner: "esmagico"
+    repo_name: "TAO-poc"
+    repo_branch: "add/tao-automation"
+
+    clone_destination: "/home/azureuser/{{ repo_name }}"
+
+    local_env_file_src: "../.env"
+    remote_env_file_dest_dir: "{{ clone_destination }}/tao-setup"
+    remote_tao_env_file_dest_dir: "{{ clone_destination }}/test-creation"
+    remote_env_file_name: ".env"
+
+  tasks:
+    - name: Ensure git is installed
+      ansible.builtin.apt:
+        name: git
+        state: present
+        update_cache: yes
+
+    - name: Clone the specified repository and branch
+      become: no
+      ansible.builtin.git:
+        repo: "https://{{ github_user }}:{{ github_pat }}@github.com/{{ repo_owner }}/{{ repo_name }}.git"
+        dest: "{{ clone_destination }}"
+        version: "{{ repo_branch }}"
+        clone: yes
+        update: yes
+      register: git_clone_result
+
+    - name: Set correct ownership on the cloned repository
+      ansible.builtin.file:
+        path: "{{ clone_destination }}"
+        state: directory
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        recurse: yes
+
+    - name: Ensure the destination directory for .env exists
+      become: no
+      ansible.builtin.file:
+        path: "{{ remote_env_file_dest_dir }}"
+        state: directory
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0755'
+
+    - name: Copy .env file to the server
+      become: no
+      ansible.builtin.copy:
+        src: "{{ local_env_file_src }}"
+        dest: "{{ remote_env_file_dest_dir }}/{{ remote_env_file_name }}"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0600'
+
+    - name: Copy .env file to the tao test creation dir
+      become: no
+      ansible.builtin.copy:
+        src: "{{ local_env_file_src }}"
+        dest: "{{ remote_tao_env_file_dest_dir }}/{{ remote_env_file_name }}"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0600'
+
+# ---------------------------------------
+- name: Pre-reboot setup
+  hosts: tao_servers
+  become: yes
+
+  tasks:
+    - name: Copy pre-reboot script
+      copy:
+        src: files/pre_reboot.sh
+        dest: /tmp/pre_reboot.sh
+        mode: '0755'
+
+    - name: Execute pre-reboot script
+      shell: /tmp/pre_reboot.sh
+      async: 0
+      poll: 0
+      ignore_errors: true
+
+    - name: Wait for reboot
+      wait_for_connection:
+        delay: 60
+        timeout: 600
+
+# ---------------------------------------
+- name: Post-reboot setup
+  hosts: tao_servers
+  become: yes
+
+  tasks:
+    - name: Copy post-reboot script
+      copy:
+        src: files/post_reboot.sh
+        dest: /tmp/post_reboot.sh
+        mode: '0755'
+
+    - name: Execute post-reboot script
+      become_user: "{{ ansible_user }}"
+      shell: /tmp/post_reboot.sh
+      args:
+        chdir: "/home/{{ ansible_user }}/TAO-poc/tao-setup"
+      ignore_errors: yes
+
+# ----------------------------------------
+- name: Test Creation setup
+  hosts: tao_servers
+  become: yes
+
+  tasks:
+    - name: Execute test creation script
+      become_user: "{{ ansible_user }}"
+      shell: /home/{{ ansible_user }}/TAO-poc/test-creation/test-creation.sh
+      args:
+        chdir: "/home/{{ ansible_user }}/TAO-poc/test-creation"

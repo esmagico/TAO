@@ -1,0 +1,7 @@
+ansible/vault.yml
+infra/.terraform
+infra/*.tfstate*
+infra/terraform.tfstate.backup
+infra/terraform.tfvars
+infra/.terraform.lock.hcl
+**/.env

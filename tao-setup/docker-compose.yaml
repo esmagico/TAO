@@ -1,0 +1,64 @@
+version: '3.8'
+services:
+  tao:
+    image: taotesting/core:latest
+    container_name: tao-1
+    depends_on:
+      tao-postgresdb:
+        condition: service_healthy
+    volumes:
+      - tao_app_data:/srv/tao/data
+      - tao_app_config:/etc/tao/conf.d
+    environment:
+      USER: admin
+      PASSWORD: admin
+      TAO_PERSISTENCE_DRIVER: pdo_pgsql
+      TAO_PERSISTENCE_DRIVER_PARAMS_DBNAME: taodb
+      TAO_PERSISTENCE_DRIVER_PARAMS_HOST: tao-postgresdb
+      TAO_PERSISTENCE_DRIVER_PARAMS_USER: admin
+      TAO_PERSISTENCE_DRIVER_PARAMS_PASSWORD: admin
+    ports:
+     - 8080:80
+
+
+  tao-postgresdb: 
+    image: postgres:14-alpine 
+    restart: always
+    environment:
+      POSTGRES_DB: taodb
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+    volumes:
+      - tao-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  caddy:
+    image: caddy:2.8
+    restart: always
+    cap_add:
+      - NET_ADMIN
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN_SCHEME: ${DOMAIN_SCHEME:-http}
+      DOMAIN_NAME: ${DOMAIN_NAME:-localdev.me}
+      TLS_ENTRY: ${TLS_ENTRY}
+    volumes:
+      - ./:/etc/caddy/common
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    extra_hosts:
+      - host.docker.internal:host-gateway
+
+volumes:
+  caddy_data:
+  caddy_config:
+  tao_app_data:
+  tao_app_config:
+  tao-db:

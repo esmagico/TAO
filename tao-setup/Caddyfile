@@ -1,0 +1,3 @@
+{$DOMAIN_SCHEME}://tao.{$DOMAIN_NAME} {
+    reverse_proxy tao:80
+}
