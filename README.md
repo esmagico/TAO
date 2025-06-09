@@ -1,3 +1,9 @@
+# Working
+- This repo will create a VM on Azure.
+- Setup TAO on it.
+- Ingest the data into test.
+- Give back url to access TAO.
+ 
 ## Steps to follow:
 
 ## Prereqisite 
