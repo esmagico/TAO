@@ -5,7 +5,7 @@
 
   vars:
     repo_owner: "esmagico"
-    repo_name: "TAO-poc"
+    repo_name: "TAO"
     repo_branch: "add/tao-automation"
 
     clone_destination: "/home/azureuser/{{ repo_name }}"
